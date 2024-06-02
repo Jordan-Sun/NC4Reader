@@ -15,12 +15,13 @@ import netCDF4 as nc
 # KppRejSteps       count
 # KppTotSteps       count
 
-# Find file in directory named 'GEOSChem.KppDiags.*.nc4'
-def findKppDiagsFile(directory):
+# Find all files in directory named 'GEOSChem.KppDiags.*.nc4'
+def findKppDiagsFiles(directory):
+    files = []
     for filename in os.listdir(directory):
         if filename.startswith('GEOSChem.KppDiags.') and filename.endswith('.nc4'):
-            return filename
-    return None
+            files.append(os.path.join(directory, filename))
+    return files
 
 # Read the KPP diagnostics from the netCDF4 file
 def readKppDiags(file):
@@ -97,29 +98,35 @@ def printToFile(file, variable):
 # Main function
 def main():
     # default directory to be the current directory
-    dir = '.'
+    dir = 'KppDiags'
     # check if an argument is passed to the script
     if len(sys.argv) > 1:
         # set the directory to the argument passed
         dir = sys.argv[1]
         
     # find the KPP diagnostics file
-    file = findKppDiagsFile(dir)
-    if file is None:
-        print('No KPP diagnostics file found in the directory:', dir)
+    files = findKppDiagsFiles(dir)
+    # check if any files were found
+    if len(files) == 0:
+        print('No KPP diagnostics files found in \'{}\'.'.format(dir))
         return
     
-    # read the KPP diagnostics from the file
-    vars = readKppDiags(file)
+    # for each file found
+    for file in files:
+        # create an output directory with the name of the file
+        outputDir = file.split('.')[2]
+        # skip if the directory already exists
+        if os.path.exists(outputDir):
+            print('Output directory \'{}\' already exists. Skipping...'.format(outputDir))
+            continue
+        os.makedirs(outputDir, exist_ok=True)
 
-    # create an output directory with the name of the file
-    outputDir = file.split('.')[2]
-    os.makedirs(outputDir, exist_ok=True)
-    os.chdir(outputDir)
+        # read the KPP diagnostics from the file
+        vars = readKppDiags(file)
 
-    # print each variable to their own file
-    for key in vars:
-        printToFile(key, vars[key])
+        # print each variable to their own file
+        for key in vars:
+            printToFile('{}/{}.txt'.format(outputDir, key), vars[key])
 
 if __name__ == '__main__':
     main()
