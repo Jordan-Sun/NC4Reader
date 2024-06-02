@@ -74,18 +74,21 @@ def readKppDiags(file):
     return vars
     
 
-# Utility function to print a nested list to a file
+# Utility function to print a nested list to a file, return the number of items printed
 def printNestedListToFile(f, nestedList, indent=0):
+    count = 0
     # check if the first item in the nested list is a list
     if isinstance(nestedList[0], list):
         # nested list, print the list with indentation
         f.write('  ' * indent + '[\n')
         for item in nestedList:
-            printNestedListToFile(f, item, indent+1)
+            count += printNestedListToFile(f, item, indent+1)
         f.write('  ' * indent + ']\n')
+        return count
     else:
         # not a nested list, print the list as is
         f.write('  ' * indent + str(nestedList) + '\n')
+        return len(nestedList)
 
 # Print a variable to a file
 def printToFile(file, variable):
@@ -93,7 +96,8 @@ def printToFile(file, variable):
         # convert the mased array to a list
         list = variable.tolist()
         # write the list to the file with indentations for each nested list
-        printNestedListToFile(f, list)
+        count = printNestedListToFile(f, list)
+        print('Printed {} items to \'{}\'.'.format(count, file))
 
 # Main function
 def main():

@@ -1,2 +1,5 @@
 # ignore any directory
 */
+# ignore any zip or 7z archive
+*.zip
+*.7z
