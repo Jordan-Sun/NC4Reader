@@ -24,7 +24,21 @@ def findKppDiagsFile(directory):
 
 # Read the KPP diagnostics from the netCDF4 file
 def readKppDiags(file):
+    # dictionary to store the variables
+    vars = {}
     with nc.Dataset(file, 'r') as f:
+        Xdim = f.variables['Xdim'][:]
+        Ydim = f.variables['Ydim'][:]
+        nf = f.variables['nf'][:]
+        ncontact = f.variables['ncontact'][:]
+        contacts = f.variables['contacts'][:]
+        anchor = f.variables['anchor'][:]
+        lons = f.variables['lons'][:]
+        lats = f.variables['lats'][:]
+        corner_lons = f.variables['corner_lons'][:]
+        corner_lats = f.variables['corner_lats'][:]
+        lev = f.variables['lev'][:]
+        time = f.variables['time'][:]
         KppAccSteps = f.variables['KppAccSteps'][:]
         KppIntCounts = f.variables['KppIntCounts'][:]
         KppJacCounts = f.variables['KppJacCounts'][:]
@@ -33,7 +47,31 @@ def readKppDiags(file):
         KppSubsts = f.variables['KppSubsts'][:]
         KppRejSteps = f.variables['KppRejSteps'][:]
         KppTotSteps = f.variables['KppTotSteps'][:]
-    return KppAccSteps, KppIntCounts, KppJacCounts, KppLuDecomps, KppSmDecomps, KppSubsts, KppRejSteps, KppTotSteps
+
+        # add the variables to the dictionary
+        vars['Xdim'] = Xdim
+        vars['Ydim'] = Ydim
+        vars['nf'] = nf
+        vars['ncontact'] = ncontact
+        vars['contacts'] = contacts
+        vars['anchor'] = anchor
+        vars['lons'] = lons
+        vars['lats'] = lats
+        vars['corner_lons'] = corner_lons
+        vars['corner_lats'] = corner_lats
+        vars['lev'] = lev
+        vars['time'] = time
+        vars['KppAccSteps'] = KppAccSteps
+        vars['KppIntCounts'] = KppIntCounts
+        vars['KppJacCounts'] = KppJacCounts
+        vars['KppLuDecomps'] = KppLuDecomps
+        vars['KppSmDecomps'] = KppSmDecomps
+        vars['KppSubsts'] = KppSubsts
+        vars['KppRejSteps'] = KppRejSteps
+        vars['KppTotSteps'] = KppTotSteps
+
+    return vars
+    
 
 # Utility function to print a nested list to a file
 def printNestedListToFile(f, nestedList, indent=0):
@@ -72,7 +110,7 @@ def main():
         return
     
     # read the KPP diagnostics from the file
-    KppAccSteps, KppIntCounts, KppJacCounts, KppLuDecomps, KppSmDecomps, KppSubsts, KppRejSteps, KppTotSteps = readKppDiags(file)
+    vars = readKppDiags(file)
 
     # create an output directory with the name of the file
     outputDir = file.split('.')[2]
@@ -80,14 +118,8 @@ def main():
     os.chdir(outputDir)
 
     # print each variable to their own file
-    printToFile('KppAccSteps.txt', KppAccSteps)
-    printToFile('KppIntCounts.txt', KppIntCounts)
-    printToFile('KppJacCounts.txt', KppJacCounts)
-    printToFile('KppLuDecomps.txt', KppLuDecomps)
-    printToFile('KppSmDecomps.txt', KppSmDecomps)
-    printToFile('KppSubsts.txt', KppSubsts)
-    printToFile('KppRejSteps.txt', KppRejSteps)
-    printToFile('KppTotSteps.txt', KppTotSteps)
+    for key in vars:
+        printToFile(key, vars[key])
 
 if __name__ == '__main__':
     main()
