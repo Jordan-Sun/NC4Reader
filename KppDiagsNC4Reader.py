@@ -107,6 +107,10 @@ def main():
     if len(sys.argv) > 1:
         # set the directory to the argument passed
         dir = sys.argv[1]
+        # check if the directory exists
+        if not os.path.exists(dir):
+            print('Directory \'{}\' does not exist.'.format(dir))
+            return
         
     # find the KPP diagnostics file
     files = findKppDiagsFiles(dir)
