@@ -28,48 +28,18 @@ def readKppDiags(file):
     # dictionary to store the variables
     vars = {}
     with nc.Dataset(file, 'r') as f:
-        Xdim = f.variables['Xdim'][:]
-        Ydim = f.variables['Ydim'][:]
-        nf = f.variables['nf'][:]
-        ncontact = f.variables['ncontact'][:]
-        contacts = f.variables['contacts'][:]
-        anchor = f.variables['anchor'][:]
-        lons = f.variables['lons'][:]
-        lats = f.variables['lats'][:]
-        corner_lons = f.variables['corner_lons'][:]
-        corner_lats = f.variables['corner_lats'][:]
-        lev = f.variables['lev'][:]
-        time = f.variables['time'][:]
-        KppAccSteps = f.variables['KppAccSteps'][:]
-        KppIntCounts = f.variables['KppIntCounts'][:]
-        KppJacCounts = f.variables['KppJacCounts'][:]
-        KppLuDecomps = f.variables['KppLuDecomps'][:]
-        KppSmDecomps = f.variables['KppSmDecomps'][:]
-        KppSubsts = f.variables['KppSubsts'][:]
-        KppRejSteps = f.variables['KppRejSteps'][:]
-        KppTotSteps = f.variables['KppTotSteps'][:]
-
-        # add the variables to the dictionary
-        vars['Xdim'] = Xdim
-        vars['Ydim'] = Ydim
-        vars['nf'] = nf
-        vars['ncontact'] = ncontact
-        vars['contacts'] = contacts
-        vars['anchor'] = anchor
-        vars['lons'] = lons
-        vars['lats'] = lats
-        vars['corner_lons'] = corner_lons
-        vars['corner_lats'] = corner_lats
-        vars['lev'] = lev
-        vars['time'] = time
-        vars['KppAccSteps'] = KppAccSteps
-        vars['KppIntCounts'] = KppIntCounts
-        vars['KppJacCounts'] = KppJacCounts
-        vars['KppLuDecomps'] = KppLuDecomps
-        vars['KppSmDecomps'] = KppSmDecomps
-        vars['KppSubsts'] = KppSubsts
-        vars['KppRejSteps'] = KppRejSteps
-        vars['KppTotSteps'] = KppTotSteps
+        # keys of the variables to be read
+        keys = f.variables.keys()
+        # read each variable
+        for key in keys:
+            # read the variable
+            var = f.variables[key][:]
+            # check if the variable is a masked array
+            if hasattr(var, 'mask'):
+                # convert the masked array to a list
+                var = var.filled()
+            # store the variable in the dictionary
+            vars[key] = var
 
     return vars
     
@@ -131,7 +101,12 @@ def main():
         # skip if the directory already exists
         if os.path.exists(outputDir):
             print('Output directory \'{}\' already exists. Skipping...'.format(outputDir))
-            continue
+            # ask if the user wants to overwrite the directory
+            overwrite = input('Do you want to overwrite the directory? (y/N): ')
+            if overwrite.lower() == 'y':
+                os.rmdir(outputDir)
+            else:
+                continue
         os.makedirs(outputDir, exist_ok=True)
 
         # read the KPP diagnostics from the file
