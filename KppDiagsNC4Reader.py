@@ -107,10 +107,15 @@ def main():
     if len(sys.argv) > 1:
         # set the directory to the argument passed
         dir = sys.argv[1]
-        # check if the directory exists
-        if not os.path.exists(dir):
-            print('Directory \'{}\' does not exist.'.format(dir))
-            return
+    
+    # check if the directory exists
+    if not os.path.exists(dir):
+        print('Directory \'{}\' does not exist.'.format(dir))
+        # ask if the user wants to create the directory
+        create = input('Do you want to create the directory? (y/N): ')
+        if create.lower() == 'y':
+            os.makedirs(dir)
+        return
         
     # find the KPP diagnostics file
     files = findKppDiagsFiles(dir)
