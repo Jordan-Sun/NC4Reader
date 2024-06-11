@@ -73,8 +73,12 @@ def main():
     flags = sys.argv[InputArg.LENGTH:]
     # force flag: '-f' or '--force'
     force = '-f' in flags or '--force' in flags
+    if force:
+        print('Force: enabled.')
     # debug flag: '-D' or '--debug'
     debug = '-D' in flags or '--debug' in flags
+    if debug:
+        print('Debug: enabled.')
 
     # get the directory from the command line
     directory = sys.argv[InputArg.DIRECTORY]
@@ -105,7 +109,7 @@ def main():
     # read the variables from the first file
     variables = readVariables(file, requiredKeys)
     # size of the data array
-    size = 203904
+    size = 59 * 6 * 24 * 24
 
     # debug: verify the variables
     if debug:
@@ -114,9 +118,15 @@ def main():
             if variables[key].shape != (1, 72, 6, 24, 24):
                 print('Error: {} shape is not (1, 72, 6, 24, 24).'.format(key))
                 exit(ErrorCode.ASSERTION_FAILED)
-            # verify that layers 60-72 are all zeros
-            if variables[key][0][60:72].any():
-                print('Error: {}[0][60:72] is not all zeros.'.format(key))
+            # # find zero layers in the variable
+            # zero_layers = []
+            # for i in range(72):
+            #     if not variables[key][0][i].any():
+            #         zero_layers.append(i)
+            # print('Zero layers in {}: {}'.format(key, zero_layers))
+            # verify that layers 59-72 are all zeros
+            if variables[key][0][59:72].any():
+                print('Error: {}[0][59:72] is not all zeros.'.format(key))
                 exit(ErrorCode.ASSERTION_FAILED)
             # verify that the length of the variable after applying the mask is equal to size
             if variables[key][0][0:59].flatten().shape[0] != size:
@@ -126,8 +136,8 @@ def main():
     # create a DataFrame of size to store the rank and index on rank
     rankDf = pd.DataFrame(index=range(size))
     # flatten and store the ranks and indices on ranks for layers 1-59
-    rankDf['rank'] = variables['KppRank'][0][0:59].flatten().astype(int)
-    rankDf['index'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
+    rankDf['KppRank'] = variables['KppRank'][0][0:59].flatten().astype(int)
+    rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
     # write the DataFrame to a CSV file
     rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
 
@@ -153,7 +163,7 @@ def main():
         # debug: verify the rank and index on rank match the first file
         if debug:
             for key in ['KppRank', 'KppIndexOnRank']:
-                if not np.array_equal(variables[key][0][0:59], rankDf[key]):
+                if not np.array_equal(variables[key][0][0:59].flatten().astype(int), rankDf[key]):
                     print('Error: {} does not match the first file.'.format(key))
                     exit(ErrorCode.ASSERTION_FAILED)
         
