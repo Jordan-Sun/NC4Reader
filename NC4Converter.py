@@ -168,7 +168,7 @@ def main():
                     exit(ErrorCode.ASSERTION_FAILED)
         
         # flatten and store the total steps for the file
-        costDf[timestamp] = variables['KppTotSteps'][0][0:59].flatten()
+        costDf = pd.concat([costDf, pd.Series(variables['KppTotSteps'][0][0:59].flatten(), name=timestamp)], axis=1)
 
     # write the DataFrame to a CSV file
     costDf.to_csv('{}/TotalSteps.csv'.format(directory), index=True)
