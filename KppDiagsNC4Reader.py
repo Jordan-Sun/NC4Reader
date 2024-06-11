@@ -5,16 +5,6 @@ import sys
 import pandas as pd
 import netCDF4 as nc
 
-# Read the following variables from the 'GEOSChem.KppDiags.%y4%m2%d2_%h2%n2z.nc4' file
-# KppAccSteps       count
-# KppIntCounts      count
-# KppJacCounts      count
-# KppLuDecomps      count
-# KppSmDecomps      count
-# KppSubsts         count
-# KppRejSteps       count
-# KppTotSteps       count
-
 # Find all files in directory named 'GEOSChem.KppDiags.*.nc4'
 def findKppDiagsFiles(directory):
     files = []
@@ -103,17 +93,16 @@ def main():
             print('Output directory \'{}\' already exists. Skipping...'.format(outputDir))
             # ask if the user wants to overwrite the directory
             overwrite = input('Do you want to overwrite the directory? (y/N): ')
-            if overwrite.lower() == 'y':
-                os.rmdir(outputDir)
-            else:
+            if overwrite.lower() != 'y':
                 continue
         os.makedirs(outputDir, exist_ok=True)
 
         # read the KPP diagnostics from the file
         vars = readKppDiags(file)
 
-        # print each variable to their own file
+        # print each variable to their own file and shape to the console
         for key in vars:
+            print('{}: {}'.format(key, vars[key].shape))
             printToFile('{}/{}.txt'.format(outputDir, key), vars[key])
 
 if __name__ == '__main__':
