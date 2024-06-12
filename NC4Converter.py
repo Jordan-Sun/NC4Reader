@@ -138,8 +138,14 @@ def main():
     # flatten and store the ranks and indices on ranks for layers 1-59
     rankDf['KppRank'] = variables['KppRank'][0][0:59].flatten().astype(int)
     rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
-    # write the DataFrame to a CSV file
     rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
+
+    # @todo: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, 24, 24) so we don't have to reshape it here
+    # write the DataFrame to a CSV file
+    # reshape the rank to a 354 by 576 array
+    assignment = rankDf['KppRank'].values.reshape(354, 576)
+    # write the reshaped assignment to an assignment file for our simulation model, separated by commas
+    np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
     # create a DataFrame of size to store the total steps
     costDf = pd.DataFrame(index=range(size))
