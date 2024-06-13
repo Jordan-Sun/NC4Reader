@@ -9,7 +9,7 @@ import netCDF4 as nc
 # Input argument enumeration
 class InputArg:
     PROGRAM_NAME = 0
-    DIRECTORY = 1
+    PATH = 1
     LENGTH = 2
 
 # Error code enumeration
@@ -20,7 +20,12 @@ class ErrorCode:
     KEY_NOT_FOUND = 3
     ASSERTION_FAILED = -1
 
+# Check if a file is a KPP diagnostics file
+def isKppDiagsFile(file: str) -> bool:
+    return file.startswith('GEOSChem.KppDiags.') and file.endswith('.nc4')
+
 # Convert the directory named 'GEOSChem.KppDiags.*.nc4' to the timestamp
+# @note: assumes that the file name is in the format 'GEOSChem.KppDiags.*.nc4'
 def convertKppDiagsFileToTimestamp(file: str) -> str:
     # split the file name into parts
     parts = os.path.basename(file).split('.')
@@ -33,7 +38,7 @@ def findKppDiagsFiles(directory) -> dict[str, str]:
     # dictionary to store the files by timestamp
     files = {}
     for filename in os.listdir(directory):
-        if filename.startswith('GEOSChem.KppDiags.') and filename.endswith('.nc4'):
+        if isKppDiagsFile(filename):
             files[convertKppDiagsFileToTimestamp(filename)] = os.path.join(directory, filename)
     # sort files by timestamp
     files = dict(sorted(files.items()))
@@ -80,15 +85,33 @@ def main():
     if debug:
         print('Debug: enabled.')
 
-    # get the directory from the command line
-    directory = sys.argv[InputArg.DIRECTORY]
+    # get the path from the command line
+    path = sys.argv[InputArg.PATH]
 
-    # find all KPP diagnostics files in the directory
-    files = findKppDiagsFiles(directory)
+    # check if the input is a directory or a file
+    if os.path.isdir(path):
+        # set the directory to be the path
+        directory = path
 
-    # check if any files were found
-    if len(files) == 0:
-        print('No KPP diagnostics files found in \'{}\'.'.format(directory))
+        # find all KPP diagnostics files in the directory
+        files = findKppDiagsFiles(directory)
+
+        # check if any files were found
+        if len(files) == 0:
+            print('Error: No KPP diagnostics files found in \'{}\'.'.format(directory))
+            sys.exit(ErrorCode.FILE_NOT_FOUND)
+    elif os.path.isfile(path):
+        # set the directory to be the parent directory of the file
+        directory = os.path.dirname(path)
+        
+        # check if the file is a KPP diagnostics file
+        if not isKppDiagsFile(path):
+            print('Error: \'{}\' is not a KPP diagnostics file.'.format(path))
+            sys.exit(ErrorCode.FILE_NOT_FOUND)
+        # set the file to be the only file
+        files = {convertKppDiagsFileToTimestamp(path): path}
+    else:
+        print('Error: Invalid path \'{}\'.'.format(path))
         sys.exit(ErrorCode.FILE_NOT_FOUND)
 
     # @todo: read data frame from files if they exist and only update the new data as needed unless forced
@@ -103,7 +126,7 @@ def main():
     requiredKeys = ['KppTotSteps', 'KppRank', 'KppIndexOnRank']
     missingKeys = [key for key in requiredKeys if key not in keys]
     if len(missingKeys) > 0:
-        print('Missing keys: {}'.format(missingKeys))
+        print('Error: Missing keys {}'.format(missingKeys))
         sys.exit(ErrorCode.KEY_NOT_FOUND)
 
     # read the variables from the first file
@@ -142,8 +165,8 @@ def main():
 
     # @todo: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, 24, 24) so we don't have to reshape it here
     # write the DataFrame to a CSV file
-    # reshape the rank to a 354 by 576 array
-    assignment = rankDf['KppRank'].values.reshape(354, 576)
+    # reshape the rank to a 8496 by 24 array
+    assignment = rankDf['KppRank'].values.reshape(8496, 24)
     # write the reshaped assignment to an assignment file for our simulation model, separated by commas
     np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
