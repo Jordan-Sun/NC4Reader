@@ -25,7 +25,7 @@ class ErrorCode:
 def main():
     # Validate the input arguments
     if len(sys.argv) != InputArg.LENGTH:
-        print('Usage: {}  <rank_index_file> <assignment_file>'.format(sys.argv[InputArg.PROGRAM_NAME]))
+        print('Usage: {} <rank_index_file> <assignment_file>'.format(sys.argv[InputArg.PROGRAM_NAME]))
         sys.exit(ErrorCode.INVALID_ARGUMENTS)
 
     # Read in the rank index file
