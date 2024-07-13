@@ -80,6 +80,10 @@ def main():
     force = '-f' in flags or '--force' in flags
     if force:
         print('Force: enabled.')
+    # separation flag: '-S' or '--separation'
+    separation = '-S' in flags or '--separation' in flags
+    if separation:
+        print('Separation: enabled.')
     # debug flag: '-D' or '--debug'
     debug = '-D' in flags or '--debug' in flags
     if debug:
@@ -171,9 +175,12 @@ def main():
     np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
     # create a DataFrame of size to store the total steps
-    costDf = pd.DataFrame(index=range(size))
+    if not separation:
+        costDf = pd.DataFrame(index=range(size))
     # read the variables from all the files
     for timestamp, file in files.items():
+        if separation:
+            costDf = pd.DataFrame(index=range(size))
         # read the keys from the file
         keys = readKeys(file)
         # verify that we have the keys needed
@@ -198,9 +205,12 @@ def main():
         
         # flatten and store the total steps for the file
         costDf = pd.concat([costDf, pd.Series(variables['KppTotSteps'][0][0:59].flatten(), name=timestamp)], axis=1)
-
-    # write the DataFrame to a CSV file
-    costDf.to_csv('{}/TotalSteps.csv'.format(directory), index=True)
+        if separation:
+            # write the DataFrame to a CSV file
+            costDf.to_csv('{}/{}.csv'.format(directory, timestamp), index=True)
+    if not separation:
+        # write the DataFrame to a CSV file
+        costDf.to_csv('{}/TotalSteps.csv'.format(directory), index=True)
 
 # Run the main function
 if __name__ == '__main__':
