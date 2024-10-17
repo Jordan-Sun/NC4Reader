@@ -56,6 +56,10 @@ def main():
             files.append(os.path.join(assignment_file, filename))
     else:
         files.append(assignment_file)
+    # Create a Mappings directory if it does not exist
+    mapping_dir = assignment_file.replace('Assignments', 'Mappings')
+    if not os.path.exists(mapping_dir):
+        os.makedirs(mapping_dir)
     
     for file in files:
         print('Reading assignment file: {}'.format(file))
@@ -90,7 +94,8 @@ def main():
             os.makedirs('Mappings')
         # Print the mapping to a csv file
         assignment_name = file.split('/')[-1].split('.')[0]
-        mapping.to_csv('Mappings/dynamic_100/{}.csv'.format(assignment_name), index=False, header=False)
+
+        mapping.to_csv('{}/{}.csv'.format(mapping_dir, assignment_name), index=False, header=False)
 
 if __name__ == '__main__':
     main()

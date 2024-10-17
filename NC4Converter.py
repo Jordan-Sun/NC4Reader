@@ -52,7 +52,7 @@ def readKeys(file: str) -> list[str]:
     return keys
 
 # Read variables from the netCDF4 file by key
-def readVariables(file: str, keys: list[str]) -> dict[str, np.ndarray]:
+def readVariables(file: str, keys: list[str], roundup: bool = False) -> dict[str, np.ndarray]:
     variables = {} 
     with nc.Dataset(file, 'r') as f:
         # read each variable
@@ -63,6 +63,9 @@ def readVariables(file: str, keys: list[str]) -> dict[str, np.ndarray]:
             if hasattr(var, 'mask'):
                 # convert the masked array to a ndarray
                 var = var.filled()
+            # round up the variable if needed
+            if roundup:
+                var = np.ceil(var)
             # store the variable in the dictionary
             variables[key] = var
     return variables
@@ -127,7 +130,7 @@ def main():
     keys = readKeys(file)
 
     # verify that we have the keys needed
-    requiredKeys = ['KppTotSteps', 'KppRank', 'KppIndexOnRank']
+    requiredKeys = ['KppTotSteps']
     missingKeys = [key for key in requiredKeys if key not in keys]
     if len(missingKeys) > 0:
         print('Error: Missing keys {}'.format(missingKeys))
@@ -160,19 +163,19 @@ def main():
                 print('Error: {}[0][0:59] does not have a length of {}.'.format(key, size))
                 exit(ErrorCode.ASSERTION_FAILED)
 
-    # create a DataFrame of size to store the rank and index on rank
-    rankDf = pd.DataFrame(index=range(size))
-    # flatten and store the ranks and indices on ranks for layers 1-59
-    rankDf['KppRank'] = variables['KppRank'][0][0:59].flatten().astype(int)
-    rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
-    rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
+    # # create a DataFrame of size to store the rank and index on rank
+    # rankDf = pd.DataFrame(index=range(size))
+    # # flatten and store the ranks and indices on ranks for layers 1-59
+    # rankDf['KppRank'] = variables['KppRank'][0][0:59].flatten().astype(int)
+    # rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
+    # rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
 
-    # @todo: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, 24, 24) so we don't have to reshape it here
-    # write the DataFrame to a CSV file
-    # reshape the rank to a 8496 by 24 array
-    assignment = rankDf['KppRank'].values.reshape(8496, 24)
-    # write the reshaped assignment to an assignment file for our simulation model, separated by commas
-    np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
+    # # @todo: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, 24, 24) so we don't have to reshape it here
+    # # write the DataFrame to a CSV file
+    # # reshape the rank to a 8496 by 24 array
+    # assignment = rankDf['KppRank'].values.reshape(8496, 24)
+    # # write the reshaped assignment to an assignment file for our simulation model, separated by commas
+    # np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
     # create a DataFrame of size to store the total steps
     if not separation:
@@ -194,7 +197,7 @@ def main():
             sys.exit(ErrorCode.KEY_NOT_FOUND)
 
         # read the variables from the file
-        variables = readVariables(file, requiredKeys)
+        variables = readVariables(file, requiredKeys, roundup=True)
 
         # debug: verify the rank and index on rank match the first file
         if debug:

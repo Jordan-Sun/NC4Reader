@@ -1,4 +1,5 @@
 # ignore any directory
+.DS_Store
 */
 # ignore any zip or 7z archive
 *.zip
