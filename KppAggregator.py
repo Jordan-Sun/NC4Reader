@@ -59,8 +59,8 @@ if __name__ == '__main__':
     for i in range(num_cells):
         rank = rank_index['KppRank'][i]
         for j in range(num_intervals):
-            print('Aggregating KPP steps for cell 0/{}, interval 0/{}'.format(num_cells, num_intervals), end='\r')
-            total_kpp_steps[rank, j] += total_steps.iloc[i, j + 1]
+            print('Aggregating KPP steps for cell {}/{}, interval {}/{}'.format(i + 1, num_cells, j + 1, num_intervals), end='\r')
+            total_kpp_steps[rank, j] += total_steps.iloc[i, j + 1] - 1 # Subtract 1 to account for the initial step
     print('Aggregated KPP steps for {} cells and {} intervals'.format(num_cells, num_intervals))
     
     # Create a DataFrame for the total KPP steps per rank per interval
