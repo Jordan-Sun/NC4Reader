@@ -138,15 +138,17 @@ def main():
 
     # read the variables from the first file
     variables = readVariables(file, requiredKeys)
+    # resolution of the data array
+    resolution = 24
     # size of the data array
-    size = 59 * 6 * 24 * 24
+    size = 6 * resolution * resolution
 
     # debug: verify the variables
     if debug:
         for key in requiredKeys:
-            # verify the shape is (1, 72, 6, 24, 24)
-            if variables[key].shape != (1, 72, 6, 24, 24):
-                print('Error: {} shape is not (1, 72, 6, 24, 24).'.format(key))
+            # verify the shape is (1, 72, 6, resolution, resolution)
+            if variables[key].shape != (1, 72, 6, resolution, resolution):  
+                print('Error: {} shape is not (1, 72, 6, {}, {}).'.format(key, resolution, resolution))
                 exit(ErrorCode.ASSERTION_FAILED)
             # # find zero layers in the variable
             # zero_layers = []
@@ -157,10 +159,6 @@ def main():
             # verify that layers 59-72 are all zeros
             if variables[key][0][59:72].any():
                 print('Error: {}[0][59:72] is not all zeros.'.format(key))
-                exit(ErrorCode.ASSERTION_FAILED)
-            # verify that the length of the variable after applying the mask is equal to size
-            if variables[key][0][0:59].flatten().shape[0] != size:
-                print('Error: {}[0][0:59] does not have a length of {}.'.format(key, size))
                 exit(ErrorCode.ASSERTION_FAILED)
 
     # # create a DataFrame of size to store the rank and index on rank
@@ -178,12 +176,9 @@ def main():
     # np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
     # create a DataFrame of size to store the total steps
-    if not separation:
-        costDf = pd.DataFrame(index=range(size))
+    costDf = pd.DataFrame(index=range(size))
     # read the variables from all the files
     for timestamp, file in files.items():
-        if separation:
-            costDf = pd.DataFrame(index=range(size))
         # read the keys from the file
         keys = readKeys(file)
         # verify that we have the keys needed
@@ -200,20 +195,27 @@ def main():
         variables = readVariables(file, requiredKeys, roundup=True)
 
         # debug: verify the rank and index on rank match the first file
-        if debug:
-            for key in ['KppRank', 'KppIndexOnRank']:
-                if not np.array_equal(variables[key][0][0:59].flatten().astype(int), rankDf[key]):
-                    print('Error: {} does not match the first file.'.format(key))
-                    exit(ErrorCode.ASSERTION_FAILED)
+        # if debug:
+        #     for key in ['KppRank', 'KppIndexOnRank']:
+        #         if not np.array_equal(variables[key][0][0:59].flatten().astype(int), rankDf[key]):
+        #             print('Error: {} does not match the first file.'.format(key))
+        #             exit(ErrorCode.ASSERTION_FAILED)
         
-        # flatten and store the total steps for the file
-        costDf = pd.concat([costDf, pd.Series(variables['KppTotSteps'][0][0:59].flatten(), name=timestamp)], axis=1)
+        # sum the total steps for each column per cell in each layer
+        costs = np.zeros(size)
+        for layer in range(59):
+            costs += variables['KppTotSteps'][0][layer].flatten()
+        if debug:
+            print('Total steps for {}: {}'.format(timestamp, costs))
+        intervalDf = pd.DataFrame(costs, columns=[timestamp])
         if separation:
             # write the DataFrame to a CSV file
             costDf.to_csv('{}/{}.csv'.format(directory, timestamp), index=True)
-    if not separation:
-        # write the DataFrame to a CSV file
-        costDf.to_csv('{}/TotalSteps.csv'.format(directory), index=True)
+        else:
+            # concatenate the interval DataFrame to the cost DataFrame
+            costDf = pd.concat([costDf, intervalDf], axis=1)
+    # write the DataFrame to a CSV file
+    costDf.to_csv('{}/TotalSteps.csv'.format(directory), index=True)
 
 # Run the main function
 if __name__ == '__main__':
