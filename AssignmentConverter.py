@@ -2,6 +2,7 @@
 
 import os
 import sys
+import re
 import numpy as np
 import pandas as pd
 
@@ -56,13 +57,28 @@ def main():
             files.append(os.path.join(assignment_file, filename))
     else:
         files.append(assignment_file)
-    # Create a Mappings directory if it does not exist
-    mapping_dir = assignment_file.replace('Assignments', 'Mappings')
-    if not os.path.exists(mapping_dir):
-        os.makedirs(mapping_dir)
+
+    # Retrieve number of intervals
+    num_intervals = len(files)
+    print('Number of intervals: {}'.format(num_intervals))
     
+    # Create an dictionary of interval number to mapping
+    mappings = {}
+    # Compile the regex pattern
+    interval_pattern = re.compile(r'interval_(\d+)\.assignment')
+
     for file in files:
         print('Reading assignment file: {}'.format(file))
+        # Extract interval number using the compiled regex
+        match = interval_pattern.search(file)
+        if match:
+            # Extract the interval number
+            interval_number = int(match.group(1))
+            print('Processing interval: {}'.format(interval_number))
+        else:
+            # Skip the file if the interval number is not found
+            print('Error: Interval number not found in assignment file name.')
+            continue
         assignment = pd.read_csv(file, header=None)
         # Flatten the assignment dataframe
         assignment = assignment.values.flatten()
@@ -71,11 +87,11 @@ def main():
             print('Error: Number of cells in assignment file does not match number of cells in rank index file.')
             sys.exit(ErrorCode.ASSERTION_FAILED)
 
-        # Create a 2d panda dataframe to store the mapping of assignment to target rank
+        # Create a panda dataframe to store the mapping of assignment to target rank
         mapping = pd.DataFrame(index=range(num_ranks), columns=range(num_indices))
 
         # Set of reassigned ranks for each rank
-        sets = [set() for i in range(num_ranks)]
+        sets = [set() for _ in range(num_ranks)]
 
         # Iterate through the assignment file and populate the mapping
         for i in range(num_cells):
@@ -85,17 +101,30 @@ def main():
             mapping.at[rank, index] = target_rank
             sets[rank].add(target_rank)
 
-        # Print the number of unique target ranks for each rank
-        for i in range(num_ranks):
-            print('Rank {}: {}'.format(i, len(sets[i])))
+        # Append the mapping to the mappings dictionary
+        mappings[interval_number] = mapping
 
-        # Make a Mappings directory if it does not exist
-        if not os.path.exists('Mappings'):
-            os.makedirs('Mappings')
-        # Print the mapping to a csv file
-        assignment_name = file.split('/')[-1].split('.')[0]
+        # # Print the number of unique target ranks for each rank
+        # for i in range(num_ranks):
+        #     print('Rank {}: {}'.format(i, len(sets[i])))
 
-        mapping.to_csv('{}/{}.csv'.format(mapping_dir, assignment_name), index=False, header=False)
+    # Create a Mappings directory if it does not exist
+    mapping_dir = assignment_file.replace('Assignments', 'Mappings')
+    if not os.path.exists(mapping_dir):
+        os.makedirs(mapping_dir)
+
+    # Convert the mappings dictionary to a dataframe per rank
+    for rank in range(num_ranks):
+        # Create a dataframe to store the mapping for the rank
+        rank_mapping = pd.DataFrame(index=range(num_intervals), columns=range(num_indices))
+        for interval in range(num_intervals):
+            rank_mapping.at[interval, :] = mappings[interval].loc[rank, :]
+        # Write the rank mapping to a csv file
+        rank_mapping.to_csv(os.path.join(mapping_dir, 'rank_{}.csv'.format(rank)), header=False, index=False)
+
+    # Make a Mappings directory if it does not exist
+    if not os.path.exists('Mappings'):
+        os.makedirs('Mappings')
 
 if __name__ == '__main__':
     main()
