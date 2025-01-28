@@ -28,7 +28,7 @@ def compare_nc_files(file1, file2, threshold=1e-6):
         
         # Check if the shapes of the data are the same
         if data1.shape != data2.shape:
-            print(f"Shape mismatch in variable {var}: {data1.shape} vs {data2.shape}")
+            print(f"Shape mismatch in variable {var}: {data1.shape} vs {data2.shape}.")
             all_match = False
             continue
 
@@ -39,18 +39,19 @@ def compare_nc_files(file1, file2, threshold=1e-6):
         if np.all(difference <= threshold):
             print(f"Variable {var} matches within the threshold of {threshold}.")
         else:
-            print(f"Variable {var} differs. Max difference: {max_diff}")
+            print(f"Variable {var} differs. Max difference: {max_diff}.")
             all_match = False
 
     return all_match
 
 # set up path completer
-path_completer = PathCompleter(only_directories=False)  # Set to True if you want only directories
-# read in file names
+path_completer = PathCompleter(only_directories=False)
+# prompt user for file names
 file1 = prompt("Enter the path to the first NetCDF file: ", completer=path_completer)
 file2 = prompt("Enter the path to the second NetCDF file: ", completer=path_completer)
 
-comparison_result = compare_nc_files(file1, file2, threshold=1e-5)
+# Compare the two NetCDF files
+comparison_result = compare_nc_files(file1, file2)
 
 if comparison_result:
     print("All variables match within the given threshold.")
