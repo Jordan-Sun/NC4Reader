@@ -9,3 +9,4 @@ RUN pip install numpy
 RUN pip install pandas
 RUN pip install cdsapi
 RUN pip install netCDF4
+RUN pip install prompt_toolkit

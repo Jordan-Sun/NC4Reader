@@ -130,16 +130,24 @@ def main():
     keys = readKeys(file)
 
     # verify that we have the keys needed
-    requiredKeys = ['KppTotSteps']
-    missingKeys = [key for key in requiredKeys if key not in keys]
-    if len(missingKeys) > 0:
-        print('Error: Missing keys {}'.format(missingKeys))
+    requiredKey = 'KppTotSteps'
+    keysToRead = [requiredKey]
+
+    optionalKeys = ['KppRank', 'KppIndexOnRank']
+    if requiredKey not in keys:
+        print('Error: Missing keys {}'.format(requiredKey))
         sys.exit(ErrorCode.KEY_NOT_FOUND)
+    haveOptionalKeys = all(key in keys for key in optionalKeys)
+
+    if haveOptionalKeys:
+        keysToRead += optionalKeys
 
     # read the variables from the first file
-    variables = readVariables(file, requiredKeys)
+    variables = readVariables(file, keysToRead, roundup=True)
     # resolution of the data array
-    resolution = 24
+    resolution = 48
+    # number of layers in the data array
+    layers = 59
     # size of the data array
     size = 6 * resolution * resolution
 
@@ -150,30 +158,25 @@ def main():
             if variables[key].shape != (1, 72, 6, resolution, resolution):  
                 print('Error: {} shape is not (1, 72, 6, {}, {}).'.format(key, resolution, resolution))
                 exit(ErrorCode.ASSERTION_FAILED)
-            # # find zero layers in the variable
-            # zero_layers = []
-            # for i in range(72):
-            #     if not variables[key][0][i].any():
-            #         zero_layers.append(i)
-            # print('Zero layers in {}: {}'.format(key, zero_layers))
-            # verify that layers 59-72 are all zeros
-            if variables[key][0][59:72].any():
-                print('Error: {}[0][59:72] is not all zeros.'.format(key))
+            # verify that layers to 72 are all zeros
+            if variables[key][0][layers:72].any():
+                print(f'Error: {key} layers {layers} to 72 are not all zeros.')
                 exit(ErrorCode.ASSERTION_FAILED)
 
-    # # create a DataFrame of size to store the rank and index on rank
-    # rankDf = pd.DataFrame(index=range(size))
-    # # flatten and store the ranks and indices on ranks for layers 1-59
-    # rankDf['KppRank'] = variables['KppRank'][0][0:59].flatten().astype(int)
-    # rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0:59].flatten().astype(int)
-    # rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
+    if haveOptionalKeys:
+        # create a DataFrame of size to store the rank and index on rank
+        rankDf = pd.DataFrame(index=range(size))
+        # flatten and store the ranks and indices on ranks for the first layer
+        rankDf['KppRank'] = variables['KppRank'][0][0].flatten().astype(int)
+        rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0].flatten().astype(int)
+        rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
 
-    # # @todo: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, 24, 24) so we don't have to reshape it here
-    # # write the DataFrame to a CSV file
-    # # reshape the rank to a 8496 by 24 array
-    # assignment = rankDf['KppRank'].values.reshape(8496, 24)
-    # # write the reshaped assignment to an assignment file for our simulation model, separated by commas
-    # np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
+        # @maybe: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, resolution, resolution)
+        # write the DataFrame to a CSV file
+        # reshape the rank to a 6 * layers * resolution by resolution array
+        assignment = rankDf['KppRank'].values.reshape(6*resolution, resolution)
+        # write the reshaped assignment to an assignment file for our simulation model, separated by commas
+        np.savetxt('{}/original.assignment'.format(directory), assignment, fmt='%d', delimiter=',')
 
     # create a DataFrame of size to store the total steps
     costDf = pd.DataFrame(index=range(size))
@@ -182,10 +185,7 @@ def main():
         # read the keys from the file
         keys = readKeys(file)
         # verify that we have the keys needed
-        if debug:
-            requiredKeys = ['KppTotSteps', 'KppRank', 'KppIndexOnRank']
-        else:
-            requiredKeys = ['KppTotSteps']
+        requiredKeys = ['KppTotSteps']
         missingKeys = [key for key in requiredKeys if key not in keys]
         if len(missingKeys) > 0:
             print('Missing keys: {}'.format(missingKeys))
@@ -193,17 +193,10 @@ def main():
 
         # read the variables from the file
         variables = readVariables(file, requiredKeys, roundup=True)
-
-        # debug: verify the rank and index on rank match the first file
-        # if debug:
-        #     for key in ['KppRank', 'KppIndexOnRank']:
-        #         if not np.array_equal(variables[key][0][0:59].flatten().astype(int), rankDf[key]):
-        #             print('Error: {} does not match the first file.'.format(key))
-        #             exit(ErrorCode.ASSERTION_FAILED)
         
         # sum the total steps for each column per cell in each layer
         costs = np.zeros(size)
-        for layer in range(59):
+        for layer in range(layers):
             costs += variables['KppTotSteps'][0][layer].flatten()
         if debug:
             print('Total steps for {}: {}'.format(timestamp, costs))
