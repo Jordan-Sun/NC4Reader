@@ -133,7 +133,7 @@ def main():
     requiredKey = 'KppTotSteps'
     keysToRead = [requiredKey]
 
-    optionalKeys = ['KppRank', 'KppIndexOnRank']
+    optionalKeys = ['KppRank']
     if requiredKey not in keys:
         print('Error: Missing keys {}'.format(requiredKey))
         sys.exit(ErrorCode.KEY_NOT_FOUND)
@@ -145,7 +145,7 @@ def main():
     # read the variables from the first file
     variables = readVariables(file, keysToRead, roundup=True)
     # resolution of the data array
-    resolution = 48
+    resolution = 24
     # number of layers in the data array
     layers = 59
     # size of the data array
@@ -168,7 +168,6 @@ def main():
         rankDf = pd.DataFrame(index=range(size))
         # flatten and store the ranks and indices on ranks for the first layer
         rankDf['KppRank'] = variables['KppRank'][0][0].flatten().astype(int)
-        rankDf['KppIndexOnRank'] = variables['KppIndexOnRank'][0][0].flatten().astype(int)
         rankDf.to_csv('{}/RankIndex.csv'.format(directory), index=True)
 
         # @maybe: update our simulation model so that it can read the assignment as a 1d array or 4d array (59, 6, resolution, resolution)
