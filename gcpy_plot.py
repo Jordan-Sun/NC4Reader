@@ -7,20 +7,23 @@ import gcpy
 # Relative path to the dataset
 type = "c24_p144"
 file = "GEOSChem.KppDiags.20190701_0000z.nc4"
+
 # Read the dataset
 ds = xr.open_dataset(f"gchp/{type}/{file}")
 os.makedirs(f"figures/{type}", exist_ok=True)
 
-# Plotting with gcpy
+# Sum over all levels
+kpp_sum = ds["KppTotSteps"].sum(dim="lev")
+
+# Plotting with gcpy (summed over levels)
 gcpy.plot.single_panel(
-    ds["KppTotSteps"].isel(lev=0),
-    title=f"{type} KPP Steps at interval 0",
+    kpp_sum,
+    title=f"{type} KPP Steps (sum over levels)",
     gridtype="cs",
 )
-plt.savefig(f"figures/{type}/gcpy_{file}.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"figures/{type}/gcpy_sum_{file}.png", dpi=300, bbox_inches="tight")
 
-
-# Plotting with Cartopy
+# Plotting with Cartopy (summed over levels)
 plt.figure()
 ax = plt.axes(projection=ccrs.EqualEarth())
 ax.coastlines()
@@ -29,6 +32,6 @@ ax.set_global()
 for face in range(6):
     x = ds.corner_lons.isel(nf=face)
     y = ds.corner_lats.isel(nf=face)
-    v = ds.KppTotSteps.isel(time=0, lev=0, nf=face)
+    v = kpp_sum.isel(time=0, nf=face)  # summed over lev
     ax.pcolormesh(x, y, v, transform=ccrs.PlateCarree())
-plt.savefig(f"figures/{type}/cartopy_{file}.png", dpi=300, bbox_inches='tight')
+plt.savefig(f"figures/{type}/cartopy_sum_{file}.png", dpi=300, bbox_inches="tight")
