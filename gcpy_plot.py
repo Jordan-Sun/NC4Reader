@@ -16,7 +16,8 @@ cells_per_face = resolution * resolution
 corners_per_face = resolution + 1
 
 plot_linewidth = 0.6
-excluded_faces = {2,3,5}  # Faces to skip manually
+lon_wrap_threshold = 300  # degrees
+lat_span_threshold = 150  # degrees
 
 plot_type = f"c{resolution}_p{processors}"
 diag_file = "GEOSChem.KppDiags.20190701_0000z.nc4"
@@ -60,9 +61,6 @@ corner_lons = ds.corner_lons.values  # shape (6, 181, 181)
 corner_lats = ds.corner_lats.values
 
 for face in range(faces):
-    if face in excluded_faces:
-        continue
-
     face_lons = corner_lons[face]  # (181, 181)
     face_lats = corner_lats[face]
 
@@ -90,6 +88,11 @@ for face in range(faces):
 
         points = np.array(points)
         try:
+            lon_span = points[:, 0].max() - points[:, 0].min()
+            lat_span = points[:, 1].max() - points[:, 1].min()
+            if lon_span > lon_wrap_threshold or lat_span > lat_span_threshold:
+                continue
+
             hull = ConvexHull(points)
             hull_points = points[hull.vertices]
 
@@ -106,4 +109,4 @@ for face in range(faces):
             print(f"Convex hull failed for processor {proc_id} on face {face}: {e}")
 
 plt.title(f"{plot_type.upper()} Global Column Total KPP Steps with Processor Overlay")
-plt.savefig(f"figures/{plot_type}/overlay_sum_{diag_file}_excluded_{','.join(map(str, excluded_faces))}.pdf", bbox_inches="tight")
+plt.savefig(f"figures/{plot_type}/overlay_sum_{diag_file}.pdf", bbox_inches="tight")
