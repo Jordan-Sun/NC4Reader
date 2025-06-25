@@ -121,18 +121,24 @@ for face in range(faces):
         if len(points) >= 3:
             lons = points[:, 0]
             lats = points[:, 1]
+            # We know wrapped around 0 if both near 0 and 360 degress longitudes are in the points
             lon_range = lons.max() - lons.min()
-            # If region crosses dateline, shift longitudes
-            if lon_range > 180:
-                lons_wrapped = np.where(lons < 0, lons + 360, lons)
+            if lon_range < 180:
+                # No dateline crossing, use original points
+                hull = ConvexHull(points)
+                hull_points = points[hull.vertices]
+            else:
+                # Add 360 to any that are less than 180 degrees to handle dateline crossing
+                lons_wrapped = np.where(lons < 180, lons + 360, lons)
+                # Create points with wrapped longitudes
                 points_wrapped = np.column_stack((lons_wrapped, lats))
                 hull = ConvexHull(points_wrapped)
                 hull_points = points_wrapped[hull.vertices]
-                # Shift back for plotting
-                hull_points[:, 0] = np.where(hull_points[:, 0] > 180, hull_points[:, 0] - 360, hull_points[:, 0])
-            else:
-                hull = ConvexHull(points)
-                hull_points = points[hull.vertices]
+                # Shift back for plotting in [-180, 180]
+                hull_points[:, 0] = np.where(
+                    hull_points[:, 0] > 180, hull_points[:, 0] - 360, hull_points[:, 0]
+                )
+
             polygon = patches.Polygon(
                 hull_points.tolist(),
                 closed=True,
@@ -143,6 +149,21 @@ for face in range(faces):
                 zorder=5,
             )
             ax.add_patch(polygon)
+
+            # Label the processor at the center of the polygon
+            centroid_lon = np.mean(hull_points[:, 0])
+            centroid_lat = np.mean(hull_points[:, 1])
+            ax.text(
+                centroid_lon,
+                centroid_lat,
+                str(proc_id),
+                fontsize=6,
+                ha="center",
+                va="center",
+                color="black",
+                transform=cartopy.crs.PlateCarree(),
+                zorder=6,
+            )
         # If not enough points for a hull, skip or plot as a small marker
 
 plt.savefig(
