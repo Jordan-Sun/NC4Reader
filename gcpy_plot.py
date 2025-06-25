@@ -86,6 +86,16 @@ plt.savefig(f"figures/{plot_type}/gcpy_proctotal_{diag_file}.pdf", bbox_inches="
 ax = plt.gca()
 ax.set_global()
 
+# Assign a visually distinct color to each host (avoid blue, red, green, yellow)
+# Use a custom list of distinct colors (black, magenta, cyan, purple, brown, gray, white)
+distinct_colors = [
+    "black", "magenta", "cyan", "purple", "brown", "gray", "white",
+    "orange", "lime", "deepskyblue", "orchid", "gold", "navy", "darkorange",
+]
+n_hosts = processors // 36
+# Repeat colors if not enough for all hosts
+host_colors = [distinct_colors[i % len(distinct_colors)] for i in range(n_hosts)]
+
 # Get corner coordinates
 corner_lons = ds.corner_lons.values  # shape (6, 181, 181)
 corner_lats = ds.corner_lats.values
@@ -121,30 +131,29 @@ for face in range(faces):
         if len(points) >= 3:
             lons = points[:, 0]
             lats = points[:, 1]
-            # We know wrapped around 0 if both near 0 and 360 degress longitudes are in the points
             lon_range = lons.max() - lons.min()
             if lon_range < 180:
-                # No dateline crossing, use original points
                 hull = ConvexHull(points)
                 hull_points = points[hull.vertices]
             else:
-                # Add 360 to any that are less than 180 degrees to handle dateline crossing
                 lons_wrapped = np.where(lons < 180, lons + 360, lons)
-                # Create points with wrapped longitudes
                 points_wrapped = np.column_stack((lons_wrapped, lats))
                 hull = ConvexHull(points_wrapped)
                 hull_points = points_wrapped[hull.vertices]
-                # Shift back for plotting in [-180, 180]
                 hull_points[:, 0] = np.where(
                     hull_points[:, 0] > 180, hull_points[:, 0] - 360, hull_points[:, 0]
                 )
+
+            # Assign color by host
+            host_id = proc_id // 36
+            color = host_colors[host_id]
 
             polygon = patches.Polygon(
                 hull_points.tolist(),
                 closed=True,
                 facecolor="none",
-                edgecolor="black",
-                linewidth=plot_linewidth,
+                edgecolor=color,
+                linewidth=1.2,  # Make outline thicker for visibility
                 transform=cartopy.crs.PlateCarree(),
                 zorder=5,
             )
