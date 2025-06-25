@@ -3,7 +3,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import pandas as pd
-import cartopy.crs as ccrs
+import cartopy
 import gcpy
 import numpy as np
 from scipy.spatial import ConvexHull
@@ -47,100 +47,104 @@ kpp_sum = ds["KppTotSteps"].sum(dim="lev")
 # Compute sum over levels for each column
 column_workload = kpp_sum.values.flatten()  # shape: (total_columns,)
 
-# Compute mean workload per processor
-processor_means = np.zeros(processors)
+# Compute total workload per processor
+processor_totals = np.zeros(processors)
 for proc in range(processors):
     mask = processor_map == proc
     if np.any(mask):
-        processor_means[proc] = column_workload[mask].mean()
+        processor_totals[proc] = column_workload[mask].sum()
     else:
-        processor_means[proc] = np.nan  # or 0
+        processor_totals[proc] = np.nan  # or 0
 
-# Assign each column the mean workload of its processor
-column_proc_mean = processor_means[processor_map]
-column_proc_mean_reshaped = column_proc_mean.reshape((faces, resolution, resolution))
+# Assign each column the total workload of its processor
+column_proc_total = processor_totals[processor_map]
+column_proc_total_reshaped = column_proc_total.reshape((faces, resolution, resolution))
 
 # Create a DataArray for plotting
-proc_mean_da = xr.DataArray(
-    column_proc_mean_reshaped,
+proc_total_da = xr.DataArray(
+    column_proc_total_reshaped,
     dims=("nf", "Ydim", "Xdim"),
     coords={
         "nf": ds.nf,
         "Ydim": ds.Ydim,
         "Xdim": ds.Xdim,
     },
-    name="ProcessorMeanKppSteps",
+    name="ProcessorTotalKppSteps",
 )
 
 # Plot using gcpy
 plt.figure(figsize=(10, 9))
 gcpy.plot.single_panel(
-    proc_mean_da,
-    title=f"C{resolution} Processor Mean KPP Steps",
+    proc_total_da,
+    title=f"C{resolution} Processor Total KPP Steps",
     gridtype="cs",
 )
-plt.savefig(f"figures/{plot_type}/gcpy_procmean_{diag_file}.pdf", bbox_inches="tight")
 
-# # Plotting with Cartopy and overlay boxes
-# fig = plt.figure(figsize=(12, 10))
-# ax = plt.axes(projection=ccrs.EqualEarth())
-# ax.set_global()
-# ax.coastlines()
+plt.savefig(f"figures/{plot_type}/gcpy_proctotal_{diag_file}.pdf", bbox_inches="tight")
 
-# # Plot data
-# for face in range(faces):
-#     x = ds.corner_lons.isel(nf=face)
-#     y = ds.corner_lats.isel(nf=face)
-#     v = kpp_sum.isel(time=0, nf=face)  # summed over lev
-#     ax.pcolormesh(x, y, v, transform=ccrs.PlateCarree())
+# Overlay convex hull polygons for each processor
+ax = plt.gca()
+ax.set_global()
 
-# # Overlay node assignment bounding polygons via ConvexHull
-# corner_lons = ds.corner_lons.values  # shape (6, 181, 181)
-# corner_lats = ds.corner_lats.values
+# Get corner coordinates
+corner_lons = ds.corner_lons.values  # shape (6, 181, 181)
+corner_lats = ds.corner_lats.values
 
-# for face in range(faces):
-#     face_lons = corner_lons[face]  # (181, 181)
-#     face_lats = corner_lats[face]
+for face in range(faces):
+    face_lons = corner_lons[face]
+    face_lats = corner_lats[face]
 
-#     # Get node IDs for this face's columns
-#     start_idx = face * cells_per_face
-#     end_idx = start_idx + cells_per_face
-#     face_assignments = node_map[start_idx:end_idx].reshape(resolution, resolution)
+    # Get processor assignments for this face's columns
+    start_idx = face * cells_per_face
+    end_idx = start_idx + cells_per_face
+    face_assignments = processor_map[start_idx:end_idx].reshape(resolution, resolution)
 
-#     # For each node, collect corner points
-#     for node_id in np.unique(face_assignments):
-#         indices = np.argwhere(face_assignments == node_id)
-#         if indices.size == 0:
-#             continue
+    for proc_id in np.unique(face_assignments):
+        indices = np.argwhere(face_assignments == proc_id)
+        if indices.size == 0:
+            continue
 
-#         points = []
-#         for i, j in indices:
-#             points.extend(
-#                 [
-#                     (face_lons[i, j], face_lats[i, j]),
-#                     (face_lons[i + 1, j], face_lats[i + 1, j]),
-#                     (face_lons[i + 1, j + 1], face_lats[i + 1, j + 1]),
-#                     (face_lons[i, j + 1], face_lats[i, j + 1]),
-#                 ]
-#             )
+        # Collect all corner points for this processor
+        points = []
+        for i, j in indices:
+            points.extend(
+                [
+                    (face_lons[i, j], face_lats[i, j]),
+                    (face_lons[i + 1, j], face_lats[i + 1, j]),
+                    (face_lons[i + 1, j + 1], face_lats[i + 1, j + 1]),
+                    (face_lons[i, j + 1], face_lats[i, j + 1]),
+                ]
+            )
+        points = np.array(points)
 
-#         points = np.array(points)
-#         try:
-#             adjusted_points = points.copy()
-#             hull = ConvexHull(adjusted_points)
-#             hull_points = adjusted_points[hull.vertices]
+        # Use ConvexHull to get the boundary of the region, handling dateline crossing
+        if len(points) >= 3:
+            lons = points[:, 0]
+            lats = points[:, 1]
+            lon_range = lons.max() - lons.min()
+            # If region crosses dateline, shift longitudes
+            if lon_range > 180:
+                lons_wrapped = np.where(lons < 0, lons + 360, lons)
+                points_wrapped = np.column_stack((lons_wrapped, lats))
+                hull = ConvexHull(points_wrapped)
+                hull_points = points_wrapped[hull.vertices]
+                # Shift back for plotting
+                hull_points[:, 0] = np.where(hull_points[:, 0] > 180, hull_points[:, 0] - 360, hull_points[:, 0])
+            else:
+                hull = ConvexHull(points)
+                hull_points = points[hull.vertices]
+            polygon = patches.Polygon(
+                hull_points.tolist(),
+                closed=True,
+                facecolor="none",
+                edgecolor="black",
+                linewidth=plot_linewidth,
+                transform=cartopy.crs.PlateCarree(),
+                zorder=5,
+            )
+            ax.add_patch(polygon)
+        # If not enough points for a hull, skip or plot as a small marker
 
-#             polygon = patches.Polygon(
-#                 hull_points,
-#                 linewidth=plot_linewidth,
-#                 edgecolor="black",
-#                 facecolor="none",
-#                 transform=ccrs.PlateCarree(),
-#                 zorder=5,
-#             )
-#             ax.add_patch(polygon)
-#         except Exception as e:
-#             print(f"Convex hull failed for node {node_id} on face {face}: {e}")
-
-# plt.title(f"{plot_type.upper()} Global Column Total KPP Steps with Node Overlay")
-# plt.savefig(f"figures/{plot_type}/overlay_sum_{diag_file}.pdf", bbox_inches="tight")
+plt.savefig(
+    f"figures/{plot_type}/overlay_processors_{diag_file}.pdf", bbox_inches="tight"
+)
