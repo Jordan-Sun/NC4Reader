@@ -127,6 +127,20 @@ for face in range(faces):
             )
         points = np.array(points)
 
+        # Build a boolean mask for this processor's region
+        proc_mask = np.zeros((resolution, resolution), dtype=bool)
+        for i, j in indices:
+            proc_mask[i, j] = True
+
+        # Find halo (boundary) cells: cells in proc_mask with at least one neighbor not in proc_mask
+        halo_indices = []
+        for i, j in indices:
+            for di, dj in [(-1,0), (0,1), (1,0), (0,-1)]:
+                ni, nj = i + di, j + dj
+                if ni < 0 or ni >= resolution or nj < 0 or nj >= resolution or not proc_mask[ni, nj]:
+                    halo_indices.append((i, j))
+                    break
+
         # Use ConvexHull to get the boundary of the region, handling dateline crossing
         if len(points) >= 3:
             lons = points[:, 0]
@@ -148,16 +162,16 @@ for face in range(faces):
             host_id = proc_id // 36
             color = host_colors[host_id]
 
-            polygon = patches.Polygon(
-                hull_points.tolist(),
-                closed=True,
-                facecolor="none",
-                edgecolor=color,
-                linewidth=1.2,  # Make outline thicker for visibility
-                transform=cartopy.crs.PlateCarree(),
-                zorder=5,
-            )
-            ax.add_patch(polygon)
+            # polygon = patches.Polygon(
+            #     hull_points.tolist(),
+            #     closed=True,
+            #     facecolor="none",
+            #     edgecolor=color,
+            #     linewidth=1.2,  # Make outline thicker for visibility
+            #     transform=cartopy.crs.PlateCarree(),
+            #     zorder=5,
+            # )
+            # ax.add_patch(polygon)
 
             # Label the processor at the center of the polygon
             centroid_lon = np.mean(hull_points[:, 0])
@@ -173,7 +187,35 @@ for face in range(faces):
                 transform=cartopy.crs.PlateCarree(),
                 zorder=6,
             )
-        # If not enough points for a hull, skip or plot as a small marker
+
+            # --- Plot only the halo edges for this processor ---
+            for i, j in halo_indices:
+                for c, (di, dj) in enumerate([(-1,0), (0,1), (1,0), (0,-1)]):
+                    ni, nj = i + di, j + dj
+                    plot_edge = False
+                    if ni < 0 or ni >= resolution or nj < 0 or nj >= resolution:
+                        plot_edge = True  # At face boundary
+                    elif not proc_mask[ni, nj]:
+                        neighbor_proc = face_assignments[ni, nj]
+                        neighbor_host = neighbor_proc // 36
+                        if neighbor_host != host_id:
+                            plot_edge = True
+                    if plot_edge:
+                        corners = [
+                            (face_lons[i, j], face_lats[i, j]),
+                            (face_lons[i+1, j], face_lats[i+1, j]),
+                            (face_lons[i+1, j+1], face_lats[i+1, j+1]),
+                            (face_lons[i, j+1], face_lats[i, j+1]),
+                        ]
+                        c1 = corners[c]
+                        c2 = corners[(c+1)%4]
+                        if abs(c1[0] - c2[0]) > 180:
+                            # Handle longitude wraparound
+                            if c1[0] < c2[0]:
+                                c1 = (c1[0] + 360, c1[1])
+                            else:
+                                c2 = (c2[0] + 360, c2[1])
+                        ax.plot([c1[0], c2[0]], [c1[1], c2[1]], color=color, linewidth=1.5, zorder=8, transform=cartopy.crs.PlateCarree())
 
 plt.savefig(
     f"figures/{plot_type}/overlay_processors_{diag_file}.pdf", bbox_inches="tight"
