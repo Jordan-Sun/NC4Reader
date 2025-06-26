@@ -35,52 +35,52 @@ node_map = processor_map // 36
 # Sum over all levels
 kpp_sum = ds["KppTotSteps"].sum(dim="lev")
 
-# # Plotting with gcpy (summed over levels)
-# plt.figure(figsize=(10, 9))
-# gcpy.plot.single_panel(
-#     kpp_sum,
-#     title=f"C{resolution} Global Column Total KPP Steps",
-#     gridtype="cs",
-# )
-# plt.savefig(f"figures/{plot_type}/gcpy_column_{diag_file}.pdf", bbox_inches="tight")
-
-# Compute sum over levels for each column
-column_workload = kpp_sum.values.flatten()  # shape: (total_columns,)
-
-# Compute total workload per processor
-processor_totals = np.zeros(processors)
-for proc in range(processors):
-    mask = processor_map == proc
-    if np.any(mask):
-        processor_totals[proc] = column_workload[mask].sum()
-    else:
-        processor_totals[proc] = np.nan  # or 0
-
-# Assign each column the total workload of its processor
-column_proc_total = processor_totals[processor_map]
-column_proc_total_reshaped = column_proc_total.reshape((faces, resolution, resolution))
-
-# Create a DataArray for plotting
-proc_total_da = xr.DataArray(
-    column_proc_total_reshaped,
-    dims=("nf", "Ydim", "Xdim"),
-    coords={
-        "nf": ds.nf,
-        "Ydim": ds.Ydim,
-        "Xdim": ds.Xdim,
-    },
-    name="ProcessorTotalKppSteps",
-)
-
-# Plot using gcpy
+# Plotting with gcpy (summed over levels)
 plt.figure(figsize=(10, 9))
 gcpy.plot.single_panel(
-    proc_total_da,
-    title=f"C{resolution} Processor Total KPP Steps",
+    kpp_sum,
+    title=f"C{resolution} Global Column Total KPP Steps",
     gridtype="cs",
 )
+plt.savefig(f"figures/{plot_type}/gcpy_column_{diag_file}.pdf", bbox_inches="tight")
 
-plt.savefig(f"figures/{plot_type}/gcpy_proctotal_{diag_file}.pdf", bbox_inches="tight")
+# # Compute sum over levels for each column
+# column_workload = kpp_sum.values.flatten()  # shape: (total_columns,)
+
+# # Compute total workload per processor
+# processor_totals = np.zeros(processors)
+# for proc in range(processors):
+#     mask = processor_map == proc
+#     if np.any(mask):
+#         processor_totals[proc] = column_workload[mask].sum()
+#     else:
+#         processor_totals[proc] = np.nan  # or 0
+
+# # Assign each column the total workload of its processor
+# column_proc_total = processor_totals[processor_map]
+# column_proc_total_reshaped = column_proc_total.reshape((faces, resolution, resolution))
+
+# # Create a DataArray for plotting
+# proc_total_da = xr.DataArray(
+#     column_proc_total_reshaped,
+#     dims=("nf", "Ydim", "Xdim"),
+#     coords={
+#         "nf": ds.nf,
+#         "Ydim": ds.Ydim,
+#         "Xdim": ds.Xdim,
+#     },
+#     name="ProcessorTotalKppSteps",
+# )
+
+# # Plot using gcpy
+# plt.figure(figsize=(10, 9))
+# gcpy.plot.single_panel(
+#     proc_total_da,
+#     title=f"C{resolution} Processor Total KPP Steps",
+#     gridtype="cs",
+# )
+
+# plt.savefig(f"figures/{plot_type}/gcpy_proctotal_{diag_file}.pdf", bbox_inches="tight")
 
 # Overlay convex hull polygons for each processor
 ax = plt.gca()
@@ -150,21 +150,20 @@ for face in range(faces):
             )
             ax.add_patch(polygon)
 
-            # Label the processor at the center of the polygon
-            centroid_lon = np.mean(hull_points[:, 0])
-            centroid_lat = np.mean(hull_points[:, 1])
-            ax.text(
-                centroid_lon,
-                centroid_lat,
-                str(proc_id),
-                fontsize=6,
-                ha="center",
-                va="center",
-                color="black",
-                transform=cartopy.crs.PlateCarree(),
-                zorder=6,
-            )
-        # If not enough points for a hull, skip or plot as a small marker
+            # # Label the processor at the center of the polygon
+            # centroid_lon = np.mean(hull_points[:, 0])
+            # centroid_lat = np.mean(hull_points[:, 1])
+            # ax.text(
+            #     centroid_lon,
+            #     centroid_lat,
+            #     str(proc_id),
+            #     fontsize=6,
+            #     ha="center",
+            #     va="center",
+            #     color="black",
+            #     transform=cartopy.crs.PlateCarree(),
+            #     zorder=6,
+            # )
 
 plt.savefig(
     f"figures/{plot_type}/overlay_processors_{diag_file}.pdf", bbox_inches="tight"
